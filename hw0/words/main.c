@@ -170,8 +170,9 @@ int main (int argc, char *argv[]) {
   if ((argc - optind) < 1) {
     // No input file specified, instead, read from STDIN instead.
     infile = stdin;
-    total_words += num_words(infile);
-    rewind(infile);
+    //fflush(stdin);
+    if(count_mode) total_words += num_words(infile);
+    
     count_words(&word_counts,infile);
   } else {
     // At least one file specified. Useful functions: fopen(), fclose().
