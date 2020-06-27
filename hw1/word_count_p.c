@@ -29,31 +29,71 @@
 #endif
 
 #include "word_count.h"
+//pthread_mutex_t common_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void init_words(word_count_list_t *wclist) {
   /* TODO */
+  struct list *lp = &(wclist->lst);
+  list_init(lp);
+  pthread_mutex_init(&wclist->lock,NULL);
 }
 
 size_t len_words(word_count_list_t *wclist) {
   /* TODO */
-  return 0;
+  struct list *lp = &(wclist->lst);
+  return list_size(lp);
 }
 
 word_count_t *find_word(word_count_list_t *wclist, char *word) {
   /* TODO */
+  struct list *lp = &(wclist->lst);
+  if(!list_empty(lp)){
+    struct list_elem *e;
+    for (e = list_begin (lp); e != list_end (lp); e = list_next (e)){
+      word_count_t *f = list_entry (e, word_count_t, elem);
+      if(strcmp(f->word,word)==0) return f;
+    }
+  }
   return NULL;
 }
 
 word_count_t *add_word(word_count_list_t *wclist, char *word) {
   /* TODO */
-  return NULL;
+  pthread_mutex_lock(&wclist->lock);
+  word_count_t *wc = find_word(wclist, word);
+  struct list *lp = &(wclist->lst);
+  if(wc) wc->count++;
+  else{
+    wc = malloc(sizeof(word_count_t));
+    wc->word = word;
+    wc->count = 1;
+    list_push_front(lp,&wc->elem);
+  }
+  pthread_mutex_unlock(&wclist->lock);
+  return wc;
 }
 
 void fprint_words(word_count_list_t *wclist, FILE *outfile) {
   /* TODO */
+  struct list_elem *e;
+  struct list *lp = &(wclist->lst);
+  for (e = list_begin (lp); e != list_end (lp); e = list_next (e)){
+    word_count_t *wc = list_entry (e, word_count_t, elem);
+    fprintf(outfile, "%8d\t%s\n", wc->count, wc->word);
+  }
+}
+
+static bool less_list(const struct list_elem *ewc1,
+                      const struct list_elem *ewc2, void *aux) {
+  /* TODO */
+  word_count_t *wc1 = list_entry (ewc1, word_count_t, elem);
+  word_count_t *wc2 = list_entry (ewc2, word_count_t, elem);
+  bool (*aux_func)(const word_count_t *, const word_count_t *);
+  aux_func = aux;
+  return (*aux_func)(wc1,wc2);
 }
 
 void wordcount_sort(word_count_list_t *wclist,
                     bool less(const word_count_t *, const word_count_t *)) {
-  /* TODO */
+  list_sort(&(wclist->lst), less_list, less);
 }
