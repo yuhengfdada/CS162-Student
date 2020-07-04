@@ -98,7 +98,7 @@ int cmd_run_programs(struct tokens *tokens){
    //fflush(stdout);
     if (tcsetpgrp(STDIN_FILENO, this_pid)==-1) {
       perror("err:");
-      exit(-1);
+      exit(0);
     }
     char *path = getenv("PATH");
     char *paths[20];
@@ -151,7 +151,7 @@ int cmd_run_programs(struct tokens *tokens){
     int result = execv(buffer,execv_str);
     if(result==-1) {
       printf("error");
-      exit(-1);
+      exit(0);
     }
     
     exit(0);
@@ -170,7 +170,7 @@ int cmd_run_programs(struct tokens *tokens){
     i = WEXITSTATUS(status);
     if (tcsetpgrp(STDIN_FILENO, this_pid)==-1) {
       perror("err:");
-      exit(-1);
+      exit(0);
     }
     //wait();
     return i;
