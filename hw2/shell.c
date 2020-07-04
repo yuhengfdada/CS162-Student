@@ -120,6 +120,21 @@ int cmd_run_programs(struct tokens *tokens){
     }
 
 
+    if(size>2){
+      if(strcmp(execv_str[size-2],"<")==0) {//in
+        int fd0 = open(execv_str[size-1],O_RDONLY);
+        dup2(fd0, STDIN_FILENO);
+        close(fd0);
+      }
+      if(strcmp(execv_str[size-2],">")==0){//out
+        int fd1 = open(execv_str[size-1] , O_WRONLY|O_CREAT|O_TRUNC , 0777) ;
+        dup2(fd1, STDOUT_FILENO);
+        close(fd1);
+      }
+      execv_str[size-2] = NULL;
+    }
+
+
     int result = execv(buffer,execv_str);
     if(result==-1) {
       printf("error");
