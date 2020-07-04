@@ -88,18 +88,6 @@ int cmd_run_programs(struct tokens *tokens){
   int status;
   pid_t childpid = fork();
   if(childpid==0){
-    pid_t this_pid = getpid();
-    setpgid(this_pid, this_pid);
-    //signal(SIGINT, SIG_DFL);
-    signal(SIGTTOU, SIG_IGN);
-    //signal(SIGTSTP, SIG_IGN);
-
-  // printf("child:%d\n",getpgid(this_pid));
-   //fflush(stdout);
-    if (tcsetpgrp(STDIN_FILENO, this_pid)==-1) {
-      perror("err:");
-      exit(0);
-    }
     char *path = getenv("PATH");
     char *paths[20];
     char *token = strtok(path,":");
@@ -151,28 +139,13 @@ int cmd_run_programs(struct tokens *tokens){
     int result = execv(buffer,execv_str);
     if(result==-1) {
       printf("error");
-      exit(0);
+      exit(-1);
     }
-    
     exit(0);
   }
   else{
-    pid_t this_pid = getpid();
-    setpgid(this_pid, this_pid);
-
-    signal(SIGTTOU, SIG_IGN);
-    //signal(SIGTSTP, SIG_IGN);
-    //printf("parent:%d\n",getpgid(this_pid));
-   // fflush(stdout);
-
-    //signal(SIGINT, SIG_IGN);
     wait(&status);
     i = WEXITSTATUS(status);
-    if (tcsetpgrp(STDIN_FILENO, this_pid)==-1) {
-      perror("err:");
-      exit(0);
-    }
-    //wait();
     return i;
   }
   
