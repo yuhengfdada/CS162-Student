@@ -161,7 +161,7 @@ int cmd_run_programs(struct tokens *tokens){
     setpgid(this_pid, this_pid);
 
     signal(SIGTTOU, SIG_IGN);
-    signal(SIGTSTP, SIG_IGN);
+    //signal(SIGTSTP, SIG_IGN);
     //printf("parent:%d\n",getpgid(this_pid));
    // fflush(stdout);
 
