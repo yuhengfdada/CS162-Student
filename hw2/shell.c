@@ -80,6 +80,33 @@ int cmd_cd(struct tokens *tokens){
   else return 0;
 }
 
+int cmd_run_programs(struct tokens *tokens){
+  size_t size = tokens_get_length(tokens);
+  char * execv_str[size+1];
+  int i;
+  int status;
+  pid_t childpid = fork();
+  if(childpid==0){
+    for (i=0;i<size;++i){
+      execv_str[i] = tokens_get_token(tokens,i);
+    }
+    execv_str[size] = NULL;
+    int result = execv(tokens_get_token(tokens,0),execv_str);
+    if(result==-1) {
+      printf("error");
+      exit(-1);
+    }
+    exit(0);
+  }
+  else{
+    wait(&status);
+    i = WEXITSTATUS(status);
+    return i;
+  }
+  
+}
+
+
 /* Looks up the built-in command, if it exists. */
 int lookup(char cmd[]) {
   for (unsigned int i = 0; i < sizeof(cmd_table) / sizeof(fun_desc_t); i++)
@@ -135,7 +162,7 @@ int main(unused int argc, unused char *argv[]) {
       cmd_table[fundex].fun(tokens);
     } else {
       /* REPLACE this to run commands as programs. */
-      fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      if(cmd_run_programs(tokens)==-1) fprintf(stdout, "This shell doesn't know how to run programs.\n");
     }
 
     if (shell_is_interactive)
