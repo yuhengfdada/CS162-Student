@@ -173,7 +173,7 @@ int cmd_run_programs(struct tokens *tokens){
       exit(-1);
     }
     //wait();
-    return 0;
+    return i;
   }
   
 }
