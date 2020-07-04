@@ -80,6 +80,12 @@ int cmd_cd(struct tokens *tokens){
   else return 0;
 }
 
+void sigintHandler(int sig_num)
+{
+    signal(SIGINT, sigintHandler);
+    fflush(stdout);
+}
+
 int cmd_run_programs(struct tokens *tokens){
   size_t size = tokens_get_length(tokens);
   char * execv_str[size+1];
@@ -88,6 +94,9 @@ int cmd_run_programs(struct tokens *tokens){
   int status;
   pid_t childpid = fork();
   if(childpid==0){
+
+
+
     char *path = getenv("PATH");
     char *paths[20];
     char *token = strtok(path,":");
@@ -188,7 +197,7 @@ void init_shell() {
 
 int main(unused int argc, unused char *argv[]) {
   init_shell();
-
+  signal(SIGINT, sigintHandler);
   static char line[4096];
   int line_num = 0;
 
