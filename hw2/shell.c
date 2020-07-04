@@ -83,15 +83,44 @@ int cmd_cd(struct tokens *tokens){
 int cmd_run_programs(struct tokens *tokens){
   size_t size = tokens_get_length(tokens);
   char * execv_str[size+1];
-  int i;
+  int i = 0;
+  int count = 0;
   int status;
   pid_t childpid = fork();
   if(childpid==0){
+    char *path = getenv("PATH");
+    char *paths[20];
+    char *token = strtok(path,":");
+    
+    while( token != NULL ) {
+      paths[count] = token;
+      token = strtok(NULL, ":");
+      ++count;
+    }
+
+
     for (i=0;i<size;++i){
       execv_str[i] = tokens_get_token(tokens,i);
     }
     execv_str[size] = NULL;
-    int result = execv(tokens_get_token(tokens,0),execv_str);
+
+
+
+    char buffer[200];
+    for(i=0;i<count;++i){
+      strcpy(buffer,paths[i]);
+      strcat(buffer,"/");
+      strcat(buffer,execv_str[0]);
+      if(access(buffer, X_OK)==0) {
+        break;
+      }
+      else{
+        strcpy(buffer,tokens_get_token(tokens,0));
+      }
+    }
+
+
+    int result = execv(buffer,execv_str);
     if(result==-1) {
       printf("error");
       exit(-1);
