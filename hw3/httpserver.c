@@ -31,6 +31,10 @@ char *server_files_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
 
+void http_send_string(int fd, char *value) {
+  dprintf(fd, "%s", value);
+}
+
 /*
  * Serves the contents the file stored at `path` to the client socket `fd`.
  * It is the caller's reponsibility to ensure that the file stored at `path` exists.
@@ -39,13 +43,19 @@ void serve_file(int fd, char *path) {
 
   /* TODO: PART 2 */
   /* PART 2 BEGIN */
+  int file_des;
+  file_des = open(path,O_RDONLY);
+  char buffer[10000];
+  int f_size = read(file_des, buffer, 10000);
+  char buffer2[5];
+  snprintf(buffer2, 5, "%d", f_size);
 
   http_start_response(fd, 200);
   http_send_header(fd, "Content-Type", http_get_mime_type(path));
-  http_send_header(fd, "Content-Length", "0"); // TODO: change this line too
+  http_send_header(fd, "Content-Length", buffer2); // TODO: change this line too
   http_end_headers(fd);
-
-
+  http_send_string(fd, buffer);
+  
   /* PART 2 END */
 }
 
@@ -119,7 +129,12 @@ void handle_files_request(int fd) {
    */
 
   /* PART 2 & 3 BEGIN */
-
+  struct stat sb;
+  if (stat(path, &sb) == -1) {
+    perror("lstat error");
+    exit(errno);
+  }
+  serve_file(fd, path);
   /* PART 2 & 3 END */
 
   close(fd);
@@ -267,6 +282,15 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
    */
 
   /* PART 1 BEGIN */
+  if (bind(*socket_number, (struct sockaddr *) &server_address, sizeof(struct sockaddr_in)) == -1){
+    perror("Bind failed");
+    exit(errno);  
+  }
+
+  if(listen(*socket_number,1024)==-1){
+    perror("Listen failed");
+    exit(errno);
+  }
 
   /* PART 1 END */
   printf("Listening on port %d...\n", server_port);
