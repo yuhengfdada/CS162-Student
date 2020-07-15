@@ -45,17 +45,17 @@ void serve_file(int fd, char *path) {
   /* PART 2 BEGIN */
   int file_des;
   file_des = open(path,O_RDONLY);
-  char buffer[10000];
-  int f_size = read(file_des, buffer, 10000);
-  char buffer2[5];
-  snprintf(buffer2, 5, "%d", f_size);
+  char buffer[3000000];
+  int f_size = read(file_des, buffer, 3000000);
+  char buffer2[10];
+  snprintf(buffer2, 10, "%d", f_size);
 
   http_start_response(fd, 200);
   http_send_header(fd, "Content-Type", http_get_mime_type(path));
   http_send_header(fd, "Content-Length", buffer2); // TODO: change this line too
   http_end_headers(fd);
   http_send_string(fd, buffer);
-  
+
   /* PART 2 END */
 }
 
@@ -130,11 +130,14 @@ void handle_files_request(int fd) {
 
   /* PART 2 & 3 BEGIN */
   struct stat sb;
-  if (stat(path, &sb) == -1) {
-    perror("lstat error");
-    exit(errno);
+  if (stat(path, &sb) != -1) {
+    serve_file(fd, path);
   }
-  serve_file(fd, path);
+  else{
+    http_start_response(fd, 404);
+    http_end_headers(fd);
+  }
+ 
   /* PART 2 & 3 END */
 
   close(fd);
