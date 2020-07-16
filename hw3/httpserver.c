@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <unistd.h>
-
+#include <stdbool.h>
 #include "libhttp.h"
 #include "wq.h"
 
@@ -33,6 +33,12 @@ int server_proxy_port;
 
 void http_send_string(int fd, char *value) {
   dprintf(fd, "%s", value);
+}
+
+bool includes_index(const char *path){
+  struct stat sb;
+  if (stat(path, &sb) != -1)  return true;
+  return false;
 }
 
 /*
@@ -57,7 +63,7 @@ void serve_file(int fd, char *path) {
   http_send_header(fd, "Content-Type", http_get_mime_type(path));
   http_send_header(fd, "Content-Length", buffer2); // TODO: change this line too
   http_end_headers(fd);
-  http_send_string(fd, buffer);
+  //http_send_string(fd, buffer);
   
   int temp, written;
   while (temp != -1){
@@ -73,10 +79,22 @@ void serve_file(int fd, char *path) {
 }
 
 void serve_directory(int fd, char *path) {
-  http_start_response(fd, 200);
-  http_send_header(fd, "Content-Type", http_get_mime_type(".html"));
-  http_end_headers(fd);
-
+  char buffer[200];
+  http_format_index(buffer, path);
+  if(includes_index(buffer)){
+    serve_file(fd, buffer);
+    return;
+  }
+  else{
+    DIR * dir = opendir(path);
+    struct dirent *entry;
+    while((entry = readdir(dir))!=NULL ) {
+      http_format_href(buffer,path,entry->d_name);
+      http_send_string(fd, buffer);
+    } 
+    snprintf(buffer, 200, "%s/..", path);
+    http_send_string(fd, buffer);
+  }
   /* TODO: PART 3 */
   /* PART 3 BEGIN */
 
@@ -144,7 +162,8 @@ void handle_files_request(int fd) {
   /* PART 2 & 3 BEGIN */
   struct stat sb;
   if (stat(path, &sb) != -1) {
-    serve_file(fd, path);
+    if (S_ISREG(sb.st_mode))  serve_file(fd, path);
+    else if (S_ISDIR(sb.st_mode)) serve_directory(fd, path);
   }
   else{
     http_start_response(fd, 404);
