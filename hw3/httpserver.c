@@ -60,7 +60,7 @@ void serve_file(int fd, char *path) {
   http_send_string(fd, buffer);
   
   int temp, written;
-  while (temp != -1){
+  while (temp > 0){
     temp = 0;
     written = 0;
     temp = read(file_des, buffer, 200);
