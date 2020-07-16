@@ -32,7 +32,7 @@ char *server_proxy_hostname;
 int server_proxy_port;
 
 void http_send_string(int fd, char *value) {
-  dprintf(fd, "%s", value);
+  dprintf(fd, "%s\n", value);
 }
 
 bool includes_index(const char *path){
@@ -92,8 +92,8 @@ void serve_directory(int fd, char *path) {
       http_format_href(buffer,path,entry->d_name);
       http_send_string(fd, buffer);
     } 
-    snprintf(buffer, 200, "%s/..", path);
-    http_send_string(fd, buffer);
+    //http_format_href(buffer,path,"/..");
+    //http_send_string(fd, buffer);
   }
   /* TODO: PART 3 */
   /* PART 3 BEGIN */
