@@ -86,6 +86,9 @@ void serve_directory(int fd, char *path) {
     return;
   }
   else{
+    http_start_response(fd, 200);
+    http_send_header(fd, "Content-Type", "text/html");
+    http_end_headers(fd);
     DIR * dir = opendir(path);
     struct dirent *entry;
     while((entry = readdir(dir))!=NULL ) {
