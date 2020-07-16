@@ -43,10 +43,13 @@ void serve_file(int fd, char *path) {
 
   /* TODO: PART 2 */
   /* PART 2 BEGIN */
+  struct stat sb;
+  stat(path, &sb);
   int file_des;
   file_des = open(path,O_RDONLY);
-  char buffer[3000000];
-  int f_size = read(file_des, buffer, 3000000);
+  char buffer[200];
+  int f_size = sb.st_size;
+
   char buffer2[10];
   snprintf(buffer2, 10, "%d", f_size);
 
@@ -55,6 +58,16 @@ void serve_file(int fd, char *path) {
   http_send_header(fd, "Content-Length", buffer2); // TODO: change this line too
   http_end_headers(fd);
   http_send_string(fd, buffer);
+  
+  int temp, written;
+  while (temp != -1){
+    temp = 0;
+    written = 0;
+    temp = read(file_des, buffer, 200);
+    while (temp-written > 0){
+      written = write(fd, &buffer[written], temp-written);
+    }
+  }
 
   /* PART 2 END */
 }
