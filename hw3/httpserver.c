@@ -179,6 +179,56 @@ void handle_files_request(int fd) {
   return;
 }
 
+void *get_client(void *fdp){
+  int *args = (int *)fdp;
+  int client_fd = args[0];
+  int proxy_fd = args[1];
+  char buf[1024];
+  ssize_t n;
+
+  while ((n = read(client_fd , buf, 1024)) > 0){
+    if(write(proxy_fd , buf, n) == -1){
+      perror("error writing proxy");
+      close(proxy_fd);
+      pthread_exit(NULL);
+    }
+  }
+
+  if(n == -1){
+    perror("error reading proxy");
+  }
+
+  close (client_fd);
+  pthread_exit(NULL);
+}
+
+void *get_proxy(void *fdp){
+  int *args = (int *)fdp;
+  int client_fd = args[0];
+  int proxy_fd = args[1];
+  char buf[1024];
+  ssize_t n;
+
+  while ((n = read(proxy_fd , buf, 1024)) > 0){
+    if(write(client_fd , buf, n) == -1){
+      perror("error writing client");
+      close(client_fd);
+      pthread_exit(NULL);
+    }
+  }
+
+  if(n == -1){
+    perror("error reading client");
+  }
+
+  close (proxy_fd);
+  pthread_exit(NULL);
+}
+
+
+
+
+
 /*
  * Opens a connection to the proxy target (hostname=server_proxy_hostname and
  * port=server_proxy_port) and relays traffic to/from the stream fd and the
@@ -243,7 +293,23 @@ void handle_proxy_request(int fd) {
 
   /* TODO: PART 4 */
   /* PART 4 BEGIN */
+  int fds[2];
+  fds[0] = fd;
+  fds[1] = target_fd;
 
+  pthread_t client, proxy;
+  int err1 = pthread_create(&client, NULL, get_client, (void *)fds);
+  int err2 = pthread_create(&proxy, NULL, get_proxy, (void *)fds);
+  
+  if(err1 < 0 || err2 < 0){
+    perror("error creatinbg thread");
+    pthread_exit(NULL);
+  }
+
+  pthread_detach(client);
+  pthread_detach(proxy);
+
+  pthread_exit(NULL);
   /* PART 4 END */
 
 }
