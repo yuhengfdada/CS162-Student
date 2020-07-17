@@ -17,7 +17,7 @@
 #include <stdbool.h>
 #include "libhttp.h"
 #include "wq.h"
-
+#include "utlist.h"
 /*
  * Global configuration variables.
  * You need to use these in your implementation of handle_files_request and
@@ -502,7 +502,14 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
      */
 
     /* PART 7 BEGIN */
-    wq_push(&work_queue, client_socket_number);
+    wq_t *wq = &work_queue;
+    int client_socket_fd = client_socket_number;
+      wq_item_t *wq_item = calloc(1, sizeof(wq_item_t));
+      wq_item->client_socket_fd = client_socket_fd;
+      DL_APPEND(wq->head, wq_item);
+      wq->size++;
+      pthread_cond_broadcast(&wq->condvar);
+    //wq_push(&work_queue, client_socket_number);
     /* PART 7 END */
 #endif
   }
