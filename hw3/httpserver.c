@@ -31,6 +31,13 @@ char *server_files_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
 
+struct thread_args{
+  void (*request_handler)(int);
+  int fd;
+};
+
+
+
 void http_send_string(int fd, char *value) {
   dprintf(fd, "%s\n", value);
 }
@@ -345,6 +352,7 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 }
 #endif
 
+void *thread_server(void *);
 /*
  * Opens a TCP stream socket on all interfaces with port number PORTNO. Saves
  * the fd number of the server socket in *socket_number. For each accepted
@@ -469,7 +477,13 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
      */
 
     /* PART 6 BEGIN */
-
+    pthread_t client;
+    struct thread_args args;
+    args.request_handler = request_handler;
+    args.fd = client_socket_number;
+    struct thread_args* ptr = &args;
+    pthread_create(&client, NULL, thread_server, (void *)ptr);
+    pthread_detach(client);
     /* PART 6 END */
 #elif POOLSERVER
     /*
@@ -489,6 +503,18 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
   shutdown(*socket_number, SHUT_RDWR);
   close(*socket_number);
 }
+
+void *thread_server(void *args){
+  struct thread_args* ptr = (struct thread_args*) args;
+  void (*request_handler)(int) = ptr->request_handler;
+  int fd = ptr->fd;
+  request_handler(fd);
+  pthread_exit(NULL);
+}
+
+
+
+
 
 int server_fd;
 void signal_callback_handler(int signum) {
