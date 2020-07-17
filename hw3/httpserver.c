@@ -60,7 +60,6 @@ void serve_file(int fd, char *path) {
   stat(path, &sb);
   int file_des;
   file_des = open(path,O_RDONLY);
-  char buffer[200];
   int f_size = sb.st_size;
 
   char buffer2[10];
@@ -72,7 +71,21 @@ void serve_file(int fd, char *path) {
   http_end_headers(fd);
   //http_send_string(fd, buffer);
   
-  int temp, written;
+  int temp = 0;
+  int written = 0;
+  char* file_buffer = (char*)malloc(f_size + 1);
+
+  while(temp < f_size){
+    temp += read(file_des, file_buffer, f_size - temp);
+  }
+  while(written < f_size){
+    written += write(fd, &file_buffer[written], f_size - written);
+  }
+
+  free(file_buffer);
+  close(file_des);
+
+  /*
   while (temp != -1){
     temp = 0;
     written = 0;
@@ -81,7 +94,7 @@ void serve_file(int fd, char *path) {
       written = write(fd, &buffer[written], temp-written);
     }
   }
-
+*/
   /* PART 2 END */
 }
 
@@ -336,8 +349,10 @@ void *handle_clients(void *void_request_handler) {
 
   /* TODO: PART 7 */
   /* PART 7 BEGIN */
+  while(1){
   int fd = wq_pop(&work_queue);
   request_handler(fd);
+  }
   pthread_exit(NULL);
   /* PART 7 END */
 }
@@ -485,12 +500,15 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
 
     /* PART 6 BEGIN */
     pthread_t client;
+    pthread_create(&client, NULL, (void*)request_handler, client_socket_number);
+    /*
+    pthread_t client;
     struct thread_args args;
     args.request_handler = request_handler;
     args.fd = client_socket_number;
     struct thread_args* ptr = &args;
-    pthread_create(&client, NULL, thread_server, (void *)ptr);
-    pthread_detach(client);
+    pthread_create(&client, NULL, thread_server, (void *)ptr);*/
+    
     /* PART 6 END */
 #elif POOLSERVER
     /*
@@ -502,13 +520,7 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
      */
 
     /* PART 7 BEGIN */
-    wq_t *wq = &work_queue;
-    int client_socket_fd = client_socket_number;
-      wq_item_t *wq_item = calloc(1, sizeof(wq_item_t));
-      wq_item->client_socket_fd = client_socket_fd;
-      DL_APPEND(wq->head, wq_item);
-      wq->size++;
-      pthread_cond_broadcast(&wq->condvar);
+    wq_push(&work_queue, client_socket_number);
     //wq_push(&work_queue, client_socket_number);
     /* PART 7 END */
 #endif
@@ -519,14 +531,13 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
 }
 
 void *thread_server(void *args){
+  pthread_detach(pthread_self());
   struct thread_args* ptr = (struct thread_args*) args;
   void (*request_handler)(int) = ptr->request_handler;
   int fd = ptr->fd;
   request_handler(fd);
   pthread_exit(NULL);
 }
-
-
 
 
 
