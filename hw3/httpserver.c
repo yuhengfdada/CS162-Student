@@ -370,7 +370,7 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
   struct sockaddr_in server_address, client_address;
   size_t client_address_length = sizeof(client_address);
   int client_socket_number;
-
+  //abc
   // Creates a socket for IPv4 and TCP.
   *socket_number = socket(PF_INET, SOCK_STREAM, 0);
   if (*socket_number == -1) {
