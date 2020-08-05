@@ -30,6 +30,8 @@ pid_t shell_pgid;
 
 int cmd_exit(struct tokens *tokens);
 int cmd_help(struct tokens *tokens);
+int cmd_pwd(struct tokens *tokens);
+int cmd_cd(struct tokens *tokens);
 
 /* Built-in command functions take token array (see parse.h) and return int */
 typedef int cmd_fun_t(struct tokens *tokens);
@@ -44,6 +46,8 @@ typedef struct fun_desc {
 fun_desc_t cmd_table[] = {
   {cmd_help, "?", "show this help menu"},
   {cmd_exit, "exit", "exit the command shell"},
+  {cmd_pwd,"pwd","print the current working directory"},
+  {cmd_cd,"cd","change to the specified directory"}
 };
 
 /* Prints a helpful description for the given command */
@@ -58,6 +62,104 @@ int cmd_exit(struct tokens *tokens) {
   tokens_destroy(tokens);
   exit(0);
 }
+
+int cmd_pwd(unused struct tokens *tokens){
+  printf("%s\n",getcwd(NULL,0));
+  return 1;
+}
+
+int cmd_cd(struct tokens *tokens){
+  if(tokens_get_length(tokens)>2){
+    printf("cd: too many arguments\n");
+    return -1;
+  }
+  if(chdir(tokens_get_token(tokens,1))==-1){
+    printf("cd : No such file or directory\n");
+    return -1;
+  }
+  else return 0;
+}
+
+void sigintHandler(int sig_num)
+{
+    signal(SIGINT, sigintHandler);
+    fflush(stdout);
+}
+
+int cmd_run_programs(struct tokens *tokens){
+  size_t size = tokens_get_length(tokens);
+  char * execv_str[size+1];
+  int i = 0;
+  int count = 0;
+  int status;
+  pid_t childpid = fork();
+  if(childpid==0){
+
+
+
+    char *path = getenv("PATH");
+    char *paths[20];
+    char *token = strtok(path,":");
+    
+    while( token != NULL ) {
+      paths[count] = token;
+      token = strtok(NULL, ":");
+      ++count;
+    }
+
+
+    for (i=0;i<size;++i){
+      execv_str[i] = tokens_get_token(tokens,i);
+    }
+    execv_str[size] = NULL;
+
+
+
+    char buffer[200];
+    for(i=0;i<count;++i){
+      strcpy(buffer,paths[i]);
+      strcat(buffer,"/");
+      strcat(buffer,execv_str[0]);
+      if(access(buffer, X_OK)==0) {
+        break;
+      }
+      else{
+        strcpy(buffer,tokens_get_token(tokens,0));
+      }
+    }
+
+
+    if(size>2){
+      if(strcmp(execv_str[size-2],"<")==0) {//in
+        int fd0 = open(execv_str[size-1],O_RDONLY);
+        dup2(fd0, STDIN_FILENO);
+        close(fd0);
+        execv_str[size-2] = NULL;
+      }
+      else if(strcmp(execv_str[size-2],">")==0){//out
+        int fd1 = open(execv_str[size-1] , O_WRONLY|O_CREAT|O_TRUNC , 0777) ;
+        dup2(fd1, STDOUT_FILENO);
+        close(fd1);
+        execv_str[size-2] = NULL;
+      }
+    }
+
+
+    int result = execv(buffer,execv_str);
+    if(result==-1) {
+      printf("error");
+      exit(-1);
+    }
+    exit(0);
+  }
+  else{
+    wait(&status);
+    i = WEXITSTATUS(status);
+    return i;
+  }
+  
+}
+
 
 /* Looks up the built-in command, if it exists. */
 int lookup(char cmd[]) {
@@ -95,7 +197,7 @@ void init_shell() {
 
 int main(unused int argc, unused char *argv[]) {
   init_shell();
-
+  signal(SIGINT, sigintHandler);
   static char line[4096];
   int line_num = 0;
 
@@ -114,7 +216,7 @@ int main(unused int argc, unused char *argv[]) {
       cmd_table[fundex].fun(tokens);
     } else {
       /* REPLACE this to run commands as programs. */
-      fprintf(stdout, "This shell doesn't know how to run programs.\n");
+      if(cmd_run_programs(tokens)==-1) fprintf(stdout, "This shell doesn't know how to run programs.\n");
     }
 
     if (shell_is_interactive)
