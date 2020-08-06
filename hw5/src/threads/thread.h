@@ -102,6 +102,8 @@ struct thread
     struct file* open_file;             /* Single open file supported. */
     bool in_syscall;                    /* Stores if we are in a syscall. */
     uint8_t *cur_esp;  // taska: saves current esp for edge case.
+    uint8_t *heap_start; // TASKB: heap start address.
+    uint8_t *heap_brk;
 #endif
 
     /* Owned by thread.c. */

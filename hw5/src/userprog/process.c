@@ -425,6 +425,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      //TASKB: find heap start address!
+      thread_current()->heap_start = upage;
+      thread_current()->heap_brk = upage;
     }
   return true;
 }

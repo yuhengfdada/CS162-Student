@@ -7,8 +7,11 @@
 #include "threads/vaddr.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "threads/palloc.h"
+#include "userprog/pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
+static bool install_page (void *upage, void *kpage, bool writable);
 
 void
 syscall_init (void)
@@ -98,6 +101,57 @@ syscall_close (int fd)
     }
 }
 
+static void *syscall_sbrk(intptr_t increment)
+{
+  struct thread* t = thread_current ();
+  uint8_t *res = t->heap_brk;
+  if (increment == 0)
+  return (void *)res;
+
+  void *brk_page = pg_round_down((void *)t->heap_brk);
+  if (!pagedir_get_page(t->pagedir,(void *)t->heap_brk))
+  {
+
+    uint8_t *kpage;
+    bool success = false;
+
+    kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+    if (kpage != NULL)
+      {
+      success = install_page (brk_page, kpage, true);
+      }
+    else return (void*) -1;
+  }
+  
+    //uint32_t array[30000];
+    uint32_t brk_round_down_page = (uint32_t) brk_page;
+    uint32_t end_of_increment = (uint32_t) t->heap_brk + (uint32_t) increment;
+    int boundaries_passed = 0;
+    while (brk_round_down_page < end_of_increment)
+    {
+      brk_round_down_page += PGSIZE;
+      boundaries_passed++;
+      if ((int)pg_round_down((void *)brk_round_down_page)<=(int)pg_round_down((void *)end_of_increment))
+      {
+        uint8_t *kpage;
+        bool success = false;
+
+        kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+        if (kpage != NULL)
+          {
+          success = install_page ((void *)brk_round_down_page, kpage, true);
+          }
+        else return (void*) -1;
+      }
+    }
+
+  
+  t->heap_brk = (uint8_t*) end_of_increment;
+  return (void *)res;
+}
+
+
+
 static void
 syscall_handler (struct intr_frame *f)
 {
@@ -136,10 +190,27 @@ syscall_handler (struct intr_frame *f)
       syscall_close ((int) args[1]);
       break;
 
+    case SYS_SBRK:
+      validate_buffer_in_user_region (&args[1], sizeof(uint32_t));
+      f->eax = (uint32_t) syscall_sbrk ((intptr_t) args[1]);
+      break;
+
+
     default:
       printf ("Unimplemented system call: %d\n", (int) args[0]);
       break;
     }
 
   t->in_syscall = false;
+}
+
+static bool
+install_page (void *upage, void *kpage, bool writable)
+{
+  struct thread *t = thread_current ();
+
+  /* Verify that there's not already a page at that virtual
+     address, then map our page there. */
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
