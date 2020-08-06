@@ -6,6 +6,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
+#include "threads/palloc.h"
+#include "userprog/pagedir.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -110,6 +112,8 @@ kill (struct intr_frame *f)
     }
 }
 
+static bool install_page (void *upage, void *kpage, bool writable); //taska
+
 /* Page fault handler.  This is a skeleton that must be filled in
    to implement virtual memory.  Some solutions to project 2 may
    also require modifying this code.
@@ -152,6 +156,28 @@ page_fault (struct intr_frame *f)
 
   struct thread* t = thread_current ();
 
+   //taska: obtain esp
+   void* esp;
+   if(user) esp = f->esp;
+   else esp = t->cur_esp;
+   //taska: determine if we need a stack grouwth.
+   bool fault_on_stack = (esp <= fault_addr || fault_addr == f->esp - 4 || fault_addr == f->esp - 32);   //hard code edge cases
+   //start growth.
+   if (fault_on_stack && is_user_vaddr (fault_addr)){
+      void* fault_page = pg_round_down(fault_addr);
+
+      uint8_t *kpage;
+      bool success = false;
+
+      kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+      if (kpage != NULL)
+         {
+         success = install_page (fault_page, kpage, true);
+         }
+      else syscall_exit (-1);
+      return;
+   }
+
   /*
    * If we faulted on a user address in kernel mode while handling a syscall,
    * then it's because the user provided invalid syscall arguments. Our checks
@@ -161,8 +187,8 @@ page_fault (struct intr_frame *f)
    * the kernel and end up here. These checks below will allow us to determine
    * that this happened and terminate the process appropriately.
    */
-  if (!user && t->in_syscall && is_user_vaddr (fault_addr))
-    syscall_exit (-1);
+  //if (!user && t->in_syscall && is_user_vaddr (fault_addr))
+   syscall_exit (-1);
 
   /*
    * If we faulted in user mode, then we assume it's an invalid memory access
@@ -170,16 +196,29 @@ page_fault (struct intr_frame *f)
    * assume this; depending on the nature of the fault, the stack may need to
    * be grown.
    */
-  if (user)
-    syscall_exit (-1);
+  //if (user)
+    //syscall_exit (-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
+     /*
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
+  */
+}
+
+static bool
+install_page (void *upage, void *kpage, bool writable)
+{
+  struct thread *t = thread_current ();
+
+  /* Verify that there's not already a page at that virtual
+     address, then map our page there. */
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }

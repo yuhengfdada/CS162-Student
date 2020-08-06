@@ -104,7 +104,7 @@ syscall_handler (struct intr_frame *f)
   uint32_t* args = (uint32_t*) f->esp;
   struct thread* t = thread_current ();
   t->in_syscall = true;
-
+  t->cur_esp = f->esp; //taska: edge case
   validate_buffer_in_user_region (args, sizeof(uint32_t));
   switch (args[0])
     {
