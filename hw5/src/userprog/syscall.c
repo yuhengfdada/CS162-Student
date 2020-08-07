@@ -108,45 +108,85 @@ static void *syscall_sbrk(intptr_t increment)
   if (increment == 0)
   return (void *)res;
 
-  void *brk_page = pg_round_down((void *)t->heap_brk);
-  if (!pagedir_get_page(t->pagedir,(void *)t->heap_brk))
+  if (increment > 0)
   {
-
-    uint8_t *kpage;
-    bool success = false;
-
-    kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-    if (kpage != NULL)
-      {
-      success = install_page (brk_page, kpage, true);
-      }
-    else return (void*) -1;
-  }
-  
-    //uint32_t array[30000];
-    uint32_t brk_round_down_page = (uint32_t) brk_page;
-    uint32_t end_of_increment = (uint32_t) t->heap_brk + (uint32_t) increment;
-    int boundaries_passed = 0;
-    while (brk_round_down_page < end_of_increment)
+    void *brk_page = pg_round_down((void *)t->heap_brk);
+    bool first_page_valid = true;
+    uint8_t *the_very_first_kpage;
+    if (!pagedir_get_page(t->pagedir,(void *)t->heap_brk))
     {
-      brk_round_down_page += PGSIZE;
-      boundaries_passed++;
-      if ((int)pg_round_down((void *)brk_round_down_page)<=(int)pg_round_down((void *)end_of_increment))
-      {
-        uint8_t *kpage;
-        bool success = false;
+      first_page_valid = false;
+      uint8_t *kpage;
+      bool success = false;
 
-        kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-        if (kpage != NULL)
-          {
-          success = install_page ((void *)brk_round_down_page, kpage, true);
-          }
-        else return (void*) -1;
-      }
+      kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+      if (kpage != NULL)
+        {
+        success = install_page (brk_page, kpage, true);
+        the_very_first_kpage = kpage;
+        }
+      else return (void*) -1;
     }
+    
+      //uint32_t array[30000];
+      uint32_t brk_round_down_page = (uint32_t) brk_page;
+      uint32_t end_of_increment = (uint32_t) t->heap_brk + (uint32_t) increment;
+      int new_pages_allocated = 0;
+      uint8_t *first_kpage; 
+
+      while (brk_round_down_page < end_of_increment)
+      {
+        brk_round_down_page += PGSIZE;
+        
+        if ((int)pg_round_down((void *)brk_round_down_page)<=(int)pg_round_down((void *)end_of_increment))
+        {
+          uint8_t *kpage;
+          bool success = false;
+
+          kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+          if (kpage != NULL)
+            {
+            success = install_page ((void *)brk_round_down_page, kpage, true);
+            if (new_pages_allocated == 0) first_kpage = kpage;
+            }
+          else { //roll back!!
+            while (brk_round_down_page > (uint32_t) brk_page){
+              brk_round_down_page -= PGSIZE;
+              if (brk_round_down_page <= (uint32_t) brk_page) break;
+              pagedir_clear_page(t->pagedir,(void *)brk_round_down_page);
+            }
+            palloc_free_multiple((void *)first_kpage,new_pages_allocated);
+            if (first_page_valid == false)
+            {
+              pagedir_clear_page(t->pagedir,(void *)brk_round_down_page);
+              palloc_free_page((void *)the_very_first_kpage);
+            }
+            return (void*) -1;
+          }
+          new_pages_allocated++;
+        }
+      }
+      t->heap_brk = (uint8_t*) end_of_increment;
+  }
+  if (increment < 0)
+  {
+    void *brk_page = pg_round_down((void *)t->heap_brk);
+    uint32_t brk_round_down_page = (uint32_t) brk_page;
+    uint32_t end_of_decrement = (uint32_t) t->heap_brk + (uint32_t) increment;
+    if (end_of_decrement < (uint32_t) t->heap_start) return (void*) -1;
+    while (brk_round_down_page >= end_of_decrement){
+      
+      //if (brk_round_down_page <= end_of_decrement) break;
+      void *kpage = pagedir_get_page (t->pagedir, (void *)brk_round_down_page);
+      pagedir_clear_page(t->pagedir,(void *)brk_round_down_page);
+      palloc_free_page(kpage);
+      brk_round_down_page -= PGSIZE;
+    }
+    t->heap_brk = (uint8_t*) end_of_decrement;
+  }   
 
   
-  t->heap_brk = (uint8_t*) end_of_increment;
+  
   return (void *)res;
 }
 
