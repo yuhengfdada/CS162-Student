@@ -143,5 +143,22 @@ void* calloc (size_t nmemb, size_t size)
 void* realloc (void* ptr, size_t size)
 {
   /* Homework 5, Part B: YOUR CODE HERE */
-  return NULL;
+  if (ptr == NULL && size == 0)
+  {
+    return NULL;
+  }
+  else if (ptr != NULL && size == 0)
+  {
+    free(ptr);
+    return NULL;
+  }
+  else if (ptr == NULL && size != 0)
+  {
+    return malloc(size);
+  }
+  void *new_block = malloc(size);
+  if (new_block == NULL) return NULL;
+  memcpy (new_block, ptr, size);
+  free (ptr);
+  return new_block;
 }
